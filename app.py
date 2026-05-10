@@ -116,6 +116,8 @@ def login():
     if user and check_password_hash(user["password"],data["password"]):
         token = generate_token(user["id"])
         return {"token":token}
+    else:
+        return{"error":"Unauthorized login"}, 401
 
     return {"message":"Invalid credentials"}, 401
 

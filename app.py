@@ -75,7 +75,7 @@ def token_required(f):
             if not user_id:
                 return {"message": "Invalid/Expired token"},401
         except:
-            return {"message":"Invalid token formate"}, 401
+            return {"message":"Invalid token format"}, 401
 
         return f(*args, **kwargs)
 

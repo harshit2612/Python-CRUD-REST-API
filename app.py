@@ -70,8 +70,13 @@ def token_required(f):
             return {"message":"Token Missing"}, 401
 
         try:
-            token = auth_header.split(" ")[1]
+            parts = auth_header.split(" ")
+            if len(parts) != 2:
+                return {"message": "Invalid header format: (Use Bearer <token>)"}, 401
+
+            token = parts[1]
             user_id = verify_token(token)
+            
             if not user_id:
                 return {"message": "Invalid/Expired token"},401
         except:
@@ -85,27 +90,37 @@ def token_required(f):
 @app.route('/register', methods=["POST"])
 def register():
     data= request.get_json()
+    if not data:
+        return jsonify({"message": "Request body must be JSON"}), 400
 
-    username = data['username']
-    password = generate_password_hash(data['password'])
+    username = data.get('username')
+    password = data.get('password')
 
+    if not username or not password:
+        return {"message": "Username and Password are required"}, 400
+
+    hashed_password = generate_password_hash(password)
     conn = get_db_connection()
-    cursor = conn.cursor()
 
     try:
+        cursor = conn.cursor()
         cursor.execute("INSERT INTO users (username, password) VALUES (?,?)",
-                       (username,password))
+                       (username,hashed_password))
         conn.commit()
-    except:
+        return {"message":"User registered successfully"}, 201
+    except sqlite3.IntegrityError:
         return {"message":"User already exists"}, 400
+    except Exception as e:
+        return {"message": f"Databsae Error : {str(e)}"}, 500
     finally:
         conn.close()
-
-    return {"message":"User registered successfully"}
 
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
+    if not data:
+        return jsonify({"message": "Request body must be JSON"}), 400
+        
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -127,16 +142,31 @@ def login():
 @token_required
 def create_employees():
     data = request.get_json()
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO employees (name, designation,salary, phone) VALUES (?,?,?,?)",
-        (data['name'],data['designation'],data['salary'],data['phone'])
-    )
-    conn.commit()
-    conn.close()
+    if not data:
+        return jsonify({"message": "No input data provided"}), 400
 
-    return jsonify({"message": "Employee created"}), 201
+    name = data.get('name')
+    designation = data.get('designation', 'Not Assigned')
+    salary = data.get('salary', 0)
+    phone = data.get('phone', '')
+
+    if not name:
+        return {"message": "Employee name is required"}, 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO employees (name, designation,salary, phone) VALUES (?,?,?,?)",
+            (data['name'],data['designation'],data['salary'],data['phone'])
+        )
+        conn.commit()
+        return jsonify({"message": "Employee created"}), 201
+    except Exception as e:
+        return jsonify({"message":"Failed to create employee"}), 500
+    finally:
+        conn.close()
+
 
 #----------------------
 #Read All Employee
@@ -173,9 +203,10 @@ def get_employee(id):
 def update_employee(id):
     conn = get_db_connection()
     data = request.get_json()
+        
     conn.execute(
-        "UPDATE employess SET name=?, designation=?, salary=?, phone=?",
-    (data['name'],data['designation'],data['salary'],data['phone'])
+        "UPDATE employess SET name=?, designation=?, salary=?, phone=?, WHERE id=?",
+    (data['name'],data['designation'],data['salary'],data['phone'],id)
     )
     conn.commit()
     conn.close()

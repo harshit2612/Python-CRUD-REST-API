@@ -1,4 +1,4 @@
-# Python-CRUD-REST-API
+# Python-CRUD-REST-API with flask and SQLite
 This is a beginner level CRUD REST API in python that handles data of employees and uses SQLite as a database and implemented JWT for authentication. 
 Steps to start this Project:
 1. Clone this repository
